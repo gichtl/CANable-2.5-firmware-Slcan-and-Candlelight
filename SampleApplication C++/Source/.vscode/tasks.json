@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Yocto: build canable-demo",
+            "command": "./devtool",
+            "args": [
+                "build",
+                "canable-demo"
+            ],
+            "options": {
+                "cwd": "/home/msr/msc-ldk/build/01063"
+            },
+            "problemMatcher": {
+                "owner": "cpp",
+                "source": "gcc",
+                "fileLocation": [
+                    "absolute"
+                ],
+                "pattern": {
+                    "regexp": "^\\|\\s+(.+):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": false
+            }
+        }
+    ]
+}

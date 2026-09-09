@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Yocto ARM64",
+            "includePath": [
+                "${workspaceFolder}/Candlelight",
+                "${workspaceFolder}/Candlelight/Linux",
+                "/home/msr/msc-ldk/build/01063/tmp/work/armv8a-poky-linux/canable-demo/1.0/recipe-sysroot/usr/include",
+                "/home/msr/msc-ldk/build/01063/tmp/work/armv8a-poky-linux/canable-demo/1.0/recipe-sysroot/usr/include/libusb-1.0",
+                "/home/msr/msc-ldk/build/01063/tmp/work/armv8a-poky-linux/canable-demo/1.0/recipe-sysroot/usr/include/c++/13.3.0",
+                "/home/msr/msc-ldk/build/01063/tmp/work/armv8a-poky-linux/canable-demo/1.0/recipe-sysroot/usr/include/c++/13.3.0/aarch64-poky-linux/"
+            ],
+            "defines": [
+                "__aarch64__"
+            ],
+            "compilerPath": "/home/msr/msc-ldk/build/01063/tmp/work/armv8a-poky-linux/canable-demo/1.0/recipe-sysroot-native/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
