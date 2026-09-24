@@ -36,6 +36,8 @@ An additional "m" is prefixed for all member variables (e.g. ms_String)
 #include "CANableDemo.h"
 #include "Candlelight/Candlelight.h"
 #include "CanDump.h"
+#include "CanParser.h"
+#include "CanBitTiming.h"
 
 using namespace CANable;
 
@@ -82,12 +84,17 @@ Candlelight gi_Candle;
 kDevInfo    gk_Info;
 int         gs32_DeviceIndex; // user selection if multiple devices connected
 
+CanParser i_CanParser;
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
-    UNUSED(argc);
-    UNUSED(argv);
+    if (!i_CanParser.parse(argc - 1, &argv[1]))
+    {
+        OsLibrary::PrintConsole(GREY, "\nargument error, exiting ...\n");
+        return 1;
+    }
 
     // Increase console buffer for 3000 lines output with 300 chars per line
     // Set console window to 120 chars in 60 lines
@@ -140,22 +147,51 @@ void CandlelightDemo()
     uint32_t u32_Error = 0;
     string s_Display;
 
+    const CanConfig& i_CanConfig = i_CanParser.getCanConfig();
+    CanBitTiming i_CanTiming;
+    CanBitTiming::Result result;
+
     // Set 500 kBaud and samplepoint 60%
     // Use the smallest possible prescaler!
     // Urgently read: https://netcult.ch/elmue/CANable%20Firmware%20Update
-    switch (gk_Info.mk_Capability.fclk_can / 1000000)
+    i_CanTiming.set(
+        false,
+        gk_Info.mk_Capability.fclk_can,
+        500000,
+        600
+    );
+
+    if (i_CanConfig.bitrate != 0)   // overwrite if CAN config was passed
     {
-        case  60: u32_Error = gi_Candle.SetBitrate(false, 1, 71, 48, &s_Display); break; // STM32G0B1: CAN clock =  60 MHz
-        case 160: u32_Error = gi_Candle.SetBitrate(false, 2, 95, 64, &s_Display); break; // STM32G431: CAN cLock = 160 MHz
-        default:  OsLibrary::PrintConsole(RED, "CAN Clock not implemented.\n"); return;
+        printf("Mode: %s\n", i_CanConfig.fd ? "CAN-FD" : "CAN 2.0");
+        printf("ABR: %7u bit/s, SP %.1f%%\n",
+            i_CanConfig.bitrate,
+            0.1*i_CanConfig.sample_point);
+        i_CanTiming.set(
+            false,
+            gk_Info.mk_Capability.fclk_can,
+            i_CanConfig.bitrate,
+            i_CanConfig.sample_point
+        );
     }
+
+    if (!i_CanTiming.calculate(result))
+    {
+        OsLibrary::PrintConsole(RED, "CAN Timing not possible.\n");
+        return;
+    }
+    OsLibrary::PrintConsole(BROWN, "\nCalculated params:\n");
+    printf ("ABR: brp=%d, seg1=%d, seg2=%d baud=%d, SP=%d\n",
+         result.brp, result.seg1, result.seg2, result.actualBaud, result.actualSP);
+
+    u32_Error = gi_Candle.SetBitrate( false, result.brp, result.seg1, result.seg2, &s_Display );
 
     if (u32_Error)
     {
         OsLibrary::PrintConsole(RED, "Error setting nominal bitrate. %s\n", gi_Candle.FormatLastError(u32_Error).c_str());
         return;
     }
-    OsLibrary::PrintConsole(BROWN, "\nSet %s\n", s_Display.c_str());
+    OsLibrary::PrintConsole(BROWN, "Set %s\n", s_Display.c_str());
 
     // -----------------------------------------
 
@@ -166,19 +202,47 @@ void CandlelightDemo()
         // Set 2 MBaud and samplepoint 60%
         // Use the same prescaler as for nominal baudrate!
         // Urgently read: https://netcult.ch/elmue/CANable%20Firmware%20Update
-        switch (gk_Info.mk_Capability.fclk_can / 1000000)
+        i_CanTiming.set(
+            true,
+            gk_Info.mk_Capability.fclk_can,
+            2000000,
+            600
+        );
+
+        if (i_CanConfig.bitrate != 0)   // overwrite if CAN config was passed
         {
-            case  60: u32_Error = gi_Candle.SetBitrate(true, 1, 17, 12, &s_Display); break; // STM32G0B1: CAN clock  60 MHZ
-            case 160: u32_Error = gi_Candle.SetBitrate(true, 2, 23, 16, &s_Display); break; // STM32G431: CAN clock 160 MHZ
-            default:  OsLibrary::PrintConsole(RED, "CAN Clock not implemented.\n"); return;
+            printf("DBR: %7u bit/s, SP %.1f%%\n",
+                i_CanConfig.dbitrate,
+                0.1*i_CanConfig.dsample_point);
+            i_CanTiming.set(
+                true,
+                gk_Info.mk_Capability.fclk_can,
+                i_CanConfig.dbitrate,
+                i_CanConfig.dsample_point
+            );
         }
 
-        if (u32_Error)
+        // FD was not deconfigured in passed configuration
+        if (i_CanConfig.bitrate == 0 || i_CanConfig.fd == 1)
         {
-            OsLibrary::PrintConsole(RED, "Error setting data bitrate. %s\n", gi_Candle.FormatLastError(u32_Error).c_str());
-            return;
+            if (!i_CanTiming.calculate(result))
+            {
+                OsLibrary::PrintConsole(RED, "CAN Timing not possible.\n");
+                return;
+            }
+
+            printf ("DBR: brp=%d, seg1=%d, seg2=%d baud=%d, SP=%d\n",
+                result.brp, result.seg1, result.seg2, result.actualBaud, result.actualSP);
+
+            u32_Error = gi_Candle.SetBitrate( true, result.brp, result.seg1, result.seg2, &s_Display );
+
+            if (u32_Error)
+            {
+                OsLibrary::PrintConsole(RED, "Error setting data bitrate. %s\n", gi_Candle.FormatLastError(u32_Error).c_str());
+                return;
+            }
+            OsLibrary::PrintConsole(BROWN, "Set %s\n", s_Display.c_str());
         }
-        OsLibrary::PrintConsole(BROWN, "Set %s\n", s_Display.c_str());
     }
 
     // -----------------------------------------
