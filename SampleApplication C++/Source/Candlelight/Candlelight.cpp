@@ -721,7 +721,7 @@ uint32_t Candlelight::CtrlTransfer(eDirection e_Dir, uint8_t u8_Request, uint16_
 
     uint32_t u32_CmdBytes;
     // ATTENTION: returns ERROR_NOACCESS if p_Data is not writable !
-    uint32_t u32_CmdErr = mi_OsLibrary.ControlTransfer(&k_Setup, p_Data, &u32_CmdBytes);
+    uint32_t u32_CmdErr = mi_OsLibrary.ControlTransfer(&k_Setup, (uint8_t *)p_Data, &u32_CmdBytes);
 
     // The Firmware Update interface sends no feedback
     if (mu8_Interface != FIRMW_UPDATE_INTERFACE)
