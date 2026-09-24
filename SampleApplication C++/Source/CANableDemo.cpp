@@ -88,8 +88,41 @@ CanParser i_CanParser;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#include <csignal>
+
+// Das Flag muss 'volatile sig_atomic_t' sein, damit der Zugriff atomar 
+// und threadsicher zwischen Hauptprogramm und Handler erfolgt.
+volatile sig_atomic_t keep_running = 1;
+
+// Der Signal-Handler
+void handle_sigterm(int signum)
+{
+    if ((signum == SIGTERM) || (signum == SIGINT)) {
+        keep_running = 0; 
+    }
+}
+
+
 int main(int argc, char* argv[])
 {
+    // Struktur fuer sigaction vorbereiten
+    struct sigaction action;
+    action.sa_handler = handle_sigterm;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+
+    // 1. Handler fuer SIGTERM (System-Beendigung) registrieren
+    if (sigaction(SIGTERM, &action, NULL) < 0) {
+        perror("Fehler beim Registrieren von SIGTERM");
+        return EXIT_FAILURE;
+    }
+
+    // 2. Handler fuer SIGINT (Strg + C) registrieren
+    if (sigaction(SIGINT, &action, NULL) < 0) {
+        perror("Fehler beim Registrieren von SIGINT");
+        return EXIT_FAILURE;
+    }
+
     if (!i_CanParser.parse(argc - 1, &argv[1]))
     {
         OsLibrary::PrintConsole(GREY, "\nargument error, exiting ...\n");
@@ -116,8 +149,10 @@ int main(int argc, char* argv[])
 
     gi_Candle.Close(); // Close CAN bus, stop pipe thread
 
+#if 0
     OsLibrary::PrintConsole(GREY, "\nPress a key to exit ...\n");
     OsLibrary::WaitConsoleChar();
+#endif
 
     // only needed for Linux
     OsLibrary::RestoreTerminal();   
@@ -350,7 +385,7 @@ void CandlelightDemo()
     CanDump i_CanDump;
 #endif
     int64_t s64_LastStamp = OsLibrary::GetOsTimestamp();
-    while (true)
+    while (keep_running)
     {
         // Read the comment of OsLibrary::GetTimestamp()
         int64_t s64_Now = OsLibrary::GetOsTimestamp();
