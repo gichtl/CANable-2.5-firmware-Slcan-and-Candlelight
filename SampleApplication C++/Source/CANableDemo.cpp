@@ -35,12 +35,17 @@ An additional "m" is prefixed for all member variables (e.g. ms_String)
 
 #include "CANableDemo.h"
 #include "Candlelight/Candlelight.h"
+#include "CanDump.h"
 
 using namespace CANable;
 
 // true  --> run Candlelight demo (send and receive CAN packets)
 // false --> run DFU demo (switch a device in Candlelight mode into DFU mode, fails if already in DFU mode)
 bool CANDLELIGHT_DEMO   = true; 
+
+// true  --> dump received frames in candump format
+// false --> normal Candlelight demo output
+#define CANDUMP_MODE true
 
 // true  --> set data baudrate        -> CAN FD ackets can be sent and received
 // false --> do not set data baudrate -> CAN FD ackets cannot be sent and received
@@ -276,12 +281,17 @@ void CandlelightDemo()
 
     // -----------------------------------------
 
+#ifdef CANDUMP_MODE
+    OsLibrary::PrintConsole(GREY, "Start dump:\n");
+    CanDump i_CanDump;
+#endif
     int64_t s64_LastStamp = OsLibrary::GetOsTimestamp();
     while (true)
     {
         // Read the comment of OsLibrary::GetTimestamp()
         int64_t s64_Now = OsLibrary::GetOsTimestamp();
 
+#if 0
         // Send the Tx frame every 2 seconds (= 2000000 µs)
         if (s64_Now - s64_LastStamp >= 2000000)
         {
@@ -336,6 +346,7 @@ void CandlelightDemo()
             k_TxPackets[1].mu8_Data[0] = k_TxPackets[0].mu8_Data[0] + 0x10;
             k_TxPackets[2].mu8_Data[0] = k_TxPackets[0].mu8_Data[0] + 0x20;
         }
+#endif
 
         // Check for Rx data
         int64_t  s64_RxTimestamp;
@@ -356,6 +367,13 @@ void CandlelightDemo()
             if (u32_Error == ERR_TOO_MANY_ERRORS)
                 return; // The CANable has been disconnected
         }
+#ifdef CANDUMP_MODE
+        else if (pk_Header->msg_type == MSG_RxFrame)
+        {
+            kCanPacket k_RxPacket = gi_Candle.RxFrameToCanPacket((kRxFrameElmue*)pk_Header);
+            i_CanDump.print(k_RxPacket, s64_RxTimestamp);
+        }
+#endif
         else // pk_Header is valid
         {
             OsLibrary::PrintConsole(GREY, gi_Candle.FormatTimestamp(pk_Header, s64_RxTimestamp));
